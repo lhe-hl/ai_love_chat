@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+课件.md
+项目样式.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
