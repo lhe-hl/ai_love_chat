@@ -5,10 +5,7 @@ export function login(data) {
   return service.post('user/login', data)
 }
 
-//注册接口
-export function register(data) {
-  return service.post('/user/add', data)
-}
+
 
 //获取知识分类接口
 export function categoryTree() {

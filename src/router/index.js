@@ -97,35 +97,39 @@ const router = createRouter({
 })
 
 // 路由前置守卫
-router.beforeEach((to, form, next) => {
-  const token = localStorage.getItem('token')
-  //当前token存在
-  if (token) {
-    const userInfo = JSON.parse(localStorage.getItem('userInfo'))
-    //如果是后台用户
-    if (userInfo.userType === 2) {
-      if (to.path.startsWith('/back')) {
-        next()
-      } else {
-        next('/back/dashboard')
-      }
-    }
-    //如果是前台用户
-    else if (userInfo.userType === 1) {
-      if (to.path.startsWith('/back') || to.path.startsWith('/auth')) {
-        next('/')
-      } else {
-        next()
-      }
-    }
-  } else {
-    if (to.path.startsWith('/back')) {
-      //如果访问后台页面，跳转到登录页
-      next('/auth/login')
-    } else {
-      //如果访问其他页面，继续导航
-      next()
-    }
-  }
+// 路由前置守卫（临时注释，开发期间跳过登录验证）
+// router.beforeEach((to, form, next) => {
+//   const token = localStorage.getItem('token')
+//   //当前token存在
+//   if (token) {
+//     const userInfo = JSON.parse(localStorage.getItem('userInfo'))
+//     //如果是后台用户
+//     if (userInfo.userType === 2) {
+//       if (to.path.startsWith('/back')) {
+//         next()
+//       } else {
+//         next('/back/dashboard')
+//       }
+//     }
+//     //如果是前台用户
+//     else if (userInfo.userType === 1) {
+//       if (to.path.startsWith('/back') || to.path.startsWith('/auth')) {
+//         next('/')
+//       } else {
+//         next()
+//       }
+//     }
+//   } else {
+//     if (to.path.startsWith('/back') || to.path.startsWith('/consultation') || to.path.startsWith('/emotion-diary')) {
+//       //如果访问后台页面，跳转到登录页
+//       next('/auth/login')
+//     } else {
+//       //如果访问其他页面，继续导航
+//       next()
+//     }
+//   }
+// })
+router.beforeEach((to, from, next) => {
+  next() // 开发模式：直接放行所有路由
 })
 export default router

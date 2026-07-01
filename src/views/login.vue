@@ -13,7 +13,7 @@
       </div>
     </div>
     <div class="form-container">
-      <el-form ref="ruleFormRef" :model="formData" :rules="rules" label-position="top">
+      <el-form ref="ruleFormRef" :model="formData" :rules="rules" label-position="top" @keydown="handeleKeyDown">
         <el-form-item label="用户名或邮箱" prop="username">
           <el-input v-model="formData.username" size="large" placeholder="请输入用户名" />
         </el-form-item>
@@ -76,6 +76,14 @@ const submitForm = async (formRef) => {
       })
     }
   })
+}
+
+// 处理键盘事件
+const handeleKeyDown = (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    submitForm(ruleFormRef.value)
+  }
 }
 //去注册
 const goRegister = () => {

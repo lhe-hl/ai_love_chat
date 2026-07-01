@@ -36,7 +36,7 @@ import { logout } from '@/api/admin'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 const router = useRouter()
-const iconURL = new URL('@/assets/images/机器人.png', import.meta.url)
+const iconURL = new URL('@/assets/images/机器人.png', import.meta.url).toString()
 // 登录状态
 const isLoggedIn = ref(false)
 // 退出登录
@@ -94,6 +94,11 @@ onMounted(() => {
 
         &:hover {
           color: #4A90E2;
+        }
+
+        &.router-link-exact-active {
+          color: #4A90E2;
+          font-weight: 700;
         }
       }
     }
