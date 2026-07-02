@@ -12,6 +12,70 @@
           在线服务中
         </div>
       </div>
+      <!-- 情绪花园 -->
+      <div class="emotion-garden">
+        <div class="garden-header">
+          <div class="gander-title">情绪花园</div>
+        </div>
+        <div v-if="!hasEmotionData" class="emotion-empty">
+          <div class="empty-orbit">
+            <span class="empty-seed seed-one"></span>
+            <span class="empty-seed seed-two"></span>
+            <span class="empty-seed seed-three"></span>
+            <span class="empty-core">心</span>
+          </div>
+          <div class="empty-title">等待一场新的心情记录</div>
+          <div class="empty-text">开始聊天后，情绪花园会根据这次对话慢慢生长。</div>
+        </div>
+        <template v-else>
+        <div class="emotion-info">
+          <div class="emotion-name">{{ currentEmotion.primaryEmotion }}</div>
+          <div class="emotion-score">{{ currentEmotion.emotionScore }}</div>
+        </div>
+        <div class="warm-tips">
+          <div class="emotion-status-text">
+            <span class="status-label">今天感觉:</span>
+            <span class="status-emotion">{{ currentEmotion.isNegative ? '需要关注' : '很不错' }}</span>
+          </div>
+          <div class="emotion-intensity">
+            <span class="intensity-dots">
+              <span v-for="dot in 3" :key="dot" class="dot" :class="{'active' : getIntensityClass(currentEmotion.emotionScore) >= dot}"></span>
+            </span>
+            <span class="intensity-text">
+              {{ getRiskText(currentEmotion.riskLevel) }}
+            </span>
+          </div>
+          <!-- 温暖建议卡片 -->
+          <div v-if="currentEmotion.suggestion" class="warm-suggestion">
+            <div class="suggestion-icon">💝</div>
+            <div class="suggestion-content">
+              <div class="suggestion-title">给你的小建议：</div>
+              <div v-if="currentEmotion.suggestion" class="suggestion-text">
+                {{ currentEmotion.suggestion }}
+              </div>
+            </div>
+          </div>
+          <!-- 治愈行动 -->
+          <div v-if="currentEmotion.improvementSuggestions.length > 0" class="healing-actions">
+            <div class="actions-title">治愈自己的小行动</div>
+            <div class="actions-list">
+              <div v-for="action in currentEmotion.improvementSuggestions" :key="action" class="action-item">
+                <div class="action-icon">✨</div>
+                <div class="action-text">{{ action }}</div>
+              </div>
+            </div>
+          </div>
+          <!-- 风险提示 -->
+          <div v-if="currentEmotion.isNegative && currentEmotion.riskLevel > 2" class="risk-notice">
+            <div class="notice-icon">🤗</div>
+            <div class="notice-content">
+              <div class="notice-title">风险提示</div>
+              <div class="notice-text">{{ currentEmotion.riskDescription }}</div>
+            </div>
+          </div>
+        </div>
+        </template>
+      </div>
       <!-- 会话列表 -->
       <div class="session-history">
         <h4 class="session-title">会话列表</h4>
@@ -52,6 +116,7 @@
         </div>
       </div>
     </div>
+    <!-- AI对话区域 -->
     <div class="chat-main">
       <div class="chat-header">
         <div class="header-left">
@@ -70,7 +135,7 @@
         </el-button>
       </div>
       <!-- 消息区域 -->
-      <div class="chat-messages">
+      <div class="chat-messages" ref="chatMessagesRef">
         <!-- 默认用语 -->
         <div class="message-item ai-message" v-if="message.length === 0">
           <div class="message-avatar">
@@ -116,7 +181,7 @@
           <el-input v-model="userMessage" placeholder="请输入" type="textarea" rows="3" :disabled="isAiTying"
             @keydown="handleKeyDown" class="message-input" clearable />
           <div class="input-footer">
-            <span>按Enter发送消息，Shift+Enter换行</span>
+            <span>按Enter发送消息</span>
             <span>{{ userMessage.length }}/500</span>
           </div>
         </div>
@@ -130,9 +195,9 @@
 </template>
 <script setup>
 import { ChatRound, Clock, DeleteFilled, Promotion } from '@element-plus/icons-vue'
-import { ref, onMounted } from 'vue'
+import { computed, nextTick, ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { startSession, getSessionList, deleteSession, getSessionMessages } from '@/api/frontend'
+import { startSession, getSessionList, deleteSession, getSessionMessages,getEmotionData } from '@/api/frontend'
 import { ElMessageBox } from 'element-plus'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import { fetchEventSource } from '@microsoft/fetch-event-source'
@@ -150,6 +215,64 @@ const currentSession = ref(null)
 const sessionList = ref([])
 //定义对话消息
 const message = ref([])
+const chatMessagesRef = ref(null)
+const scrollChatToBottom = async () => {
+  await nextTick()
+  const el = chatMessagesRef.value
+  if (el) {
+    el.scrollTop = el.scrollHeight
+  }
+}
+//情绪花园
+const currentEmotion = ref({
+  primaryEmotion: '',
+  emotionScore: null,
+  isNegative: false,
+  riskLevel: null,
+  suggestion: '',
+  improvementSuggestions: [],
+  riskDescription: ''
+
+})
+const hasEmotionData = computed(() => Boolean(currentEmotion.value.primaryEmotion))
+//获取情绪强度的类名
+const getIntensityClass = (score) => {
+  if(score >= 61) {
+    return 3
+  }
+  else if (score >= 31) {
+    return 2
+  }
+  else {
+    return 1
+  }
+}
+const getRiskText = (level) => {
+  switch (level) {
+    case 0:
+      return '正常'
+    case 1:
+      return '需要关注'
+    case 2:
+      return '预警'
+    case 3:
+      return '高风险'
+    default:
+      return '未知风险'
+  }
+}
+//重置情绪花园
+const resetEmotionGarden = () => {
+  Object.assign(currentEmotion.value, {
+    primaryEmotion: '',
+    emotionScore: null,
+    isNegative: false,
+    riskLevel: null,
+    suggestion: '',
+    improvementSuggestions: [],
+    riskDescription: ''
+  })
+}
 //新建会话
 const createNewFrontendSession = () => {
   // console.log('点击了新建对话');
@@ -163,8 +286,11 @@ const createNewFrontendSession = () => {
   //清空对话列表
   message.value = []
   userMessage.value = ''
+  scrollChatToBottom()
   //刷新会话历史列表
   getSessionPage()
+  //恢复情绪花园默认样式
+  resetEmotionGarden()
 }
 
 // 处理键盘事件
@@ -200,6 +326,7 @@ const sendMessage = () => {
       content: funcMessage,
       createdAt: new Date().toISOString(),
     })
+    scrollChatToBottom()
     // 处理已激活的会话
     startAIResponse(currentSession.value.sessionId, funcMessage)
   }
@@ -245,6 +372,7 @@ const startNewSession = async (funcMessage) => {
       content: funcMessage,
       createdAt: new Date().toISOString(),
     })
+    scrollChatToBottom()
     //流式对话
     startAIResponse(currentSession.value.sessionId, funcMessage)
   }
@@ -264,6 +392,7 @@ const startAIResponse = (sessionId, userMessage) => {
     createdAt: new Date().toISOString(),
   }
   message.value.push(aiMessage)
+  scrollChatToBottom()
   //调用流式接口
   const ctrl = new AbortController() //专门用来终止fetch请求的
   fetchEventSource('/api/psychological-chat/stream', {
@@ -294,12 +423,15 @@ const startAIResponse = (sessionId, userMessage) => {
       if (eventName === 'done') {
         isAiTying.value = false
         ctrl.abort() //终止请求
+        getCurrentEmotion(sessionId)
+        getSessionPage()
         return
       }
       const payload = JSON.parse(raw)
       const ok = String(payload.code) === '200'
       if (ok && payload.data && payload.data.content) {
         aiMessage.content += payload.data.content
+        scrollChatToBottom()
         // console.log('当前content:', aiMessage.content)
       }
       else if (!ok) {
@@ -314,6 +446,7 @@ const startAIResponse = (sessionId, userMessage) => {
     },
     onclose: () => {
       //预留情绪分析接口
+      getCurrentEmotion(sessionId)
     }
   })
 }
@@ -324,6 +457,7 @@ const handleError = (error) => {
   if (aiMessage) {
     aiMessage.content = 'AI助手回复失败，请重试'
   }
+  scrollChatToBottom()
   isAiTying.value = false
   ElMessage.error('AI助手回复失败，请重试')
 }
@@ -354,6 +488,7 @@ const handleSessionClick = async (session) => {
     console.log(res);
     //更新消息列表
     message.value = res || []
+    scrollChatToBottom()
     // console.log(message);
     //更新当前会话数据
     const sessionData = {
@@ -366,6 +501,7 @@ const handleSessionClick = async (session) => {
     console.error('调用接口失败:', error)
     ElMessage.error('发送失败，请重试')
   }
+  getCurrentEmotion(currentSession.value.sessionId)
 }
 //处理删除会话点击事件
 const handleDeleteClick = async (id) => {
@@ -388,6 +524,17 @@ const handleDeleteClick = async (id) => {
 const formatMessageContent = (content) => {
   return content.replace(/\n/g, '<br>')
 }
+
+//获取当前对话情绪花园数据
+const getCurrentEmotion = async (id) => {
+  try {
+    const res = await getEmotionData(id)
+    console.log('获取情绪花园数据:', res)
+    Object.assign(currentEmotion.value, res)
+  } catch {
+    ElMessage.error('获取情绪花园数据失败，请重试')
+  }
+}
 onMounted(() => {
   createNewFrontendSession()
   getSessionPage()
@@ -397,16 +544,28 @@ onMounted(() => {
 <style scoped lang="scss">
 .consultation-container {
   margin: 0 auto;
-  width: 1200px;
+  width: 100%;
+  height: calc(100vh - 120px);
+  min-height: 560px;
   display: flex;
-  gap: 20px;
-  padding: 20px;
+  gap: 30px;
+  padding: 8px 278px 8px 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
 
   .sidebar {
     width: 320px;
+    min-height: 0;
+    display: flex;
+    margin-left: 20px;
+    flex-direction: column;
+    overflow: hidden;
 
     .ai-assistant-info {
-      margin-bottom: 20px;
+      flex: 0 0 130px;
+      min-height: 130px;
+      margin-bottom: 10px;
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 252, 248, 0.95) 100%);
       border-radius: 16px;
       padding: 16px;
@@ -454,19 +613,23 @@ onMounted(() => {
           background: #059669;
           border-radius: 50%;
           margin-right: 8px;
-          animation: pulse 2s infinite;
+          animation: onlineBlink 1.4s ease-in-out infinite;
           box-shadow: 0 0 8px rgba(5, 150, 105, 0.4);
         }
       }
     }
 
     .session-history {
+      position: absolute;
+      top: 8px;
+      right: 20px;
+      bottom: 8px;
+      width: 260px;
+      min-height: 0;
       background: white;
       border-radius: 16px;
       padding: 16px;
       box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
-      min-height: 250px;
       display: flex;
       flex-direction: column;
 
@@ -482,8 +645,9 @@ onMounted(() => {
       }
 
       .session-list {
+        flex: 1;
+        min-height: 0;
         overflow-y: auto;
-        max-height: 200px;
         scrollbar-width: thin;
         scrollbar-color: rgba(64, 150, 255, 0.3) transparent;
 
@@ -575,15 +739,18 @@ onMounted(() => {
     }
 
     .emotion-garden {
+      flex: 1 1 0;
       background: linear-gradient(135deg, #fef9e7 0%, #fcf4e6 50%, #f6f0e8 100%);
       border-radius: 20px;
       padding: 16px;
-      margin-bottom: 20px;
+      margin-bottom: 0;
       box-shadow: 0 8px 32px rgba(252, 244, 230, 0.8);
       border: 1px solid rgba(255, 255, 255, 0.2);
       position: relative;
-      overflow: hidden;
-      min-height: 300px;
+      overflow-y: auto;
+      min-height: 0;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(139, 69, 19, 0.25) transparent;
 
       .garden-header {
         display: flex;
@@ -600,6 +767,87 @@ onMounted(() => {
           font-size: 16px;
           font-weight: 600;
           color: #8b4513;
+        }
+      }
+
+      .emotion-empty {
+        height: calc(100% - 42px);
+        min-height: 220px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: #7c5f3f;
+
+        .empty-orbit {
+          width: 118px;
+          height: 118px;
+          border-radius: 50%;
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 18px;
+          background:
+            radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.96) 0 34%, transparent 35%),
+            conic-gradient(from 140deg, rgba(251, 146, 60, 0.18), rgba(34, 197, 94, 0.2), rgba(250, 204, 21, 0.22), rgba(251, 146, 60, 0.18));
+          box-shadow: inset 0 0 22px rgba(255, 255, 255, 0.72), 0 14px 34px rgba(139, 92, 36, 0.12);
+        }
+
+        .empty-core {
+          width: 54px;
+          height: 54px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #f97316;
+          font-size: 20px;
+          font-weight: 700;
+          background: linear-gradient(135deg, #fff7ed, #ffedd5);
+          box-shadow: 0 8px 20px rgba(251, 146, 60, 0.18);
+        }
+
+        .empty-seed {
+          position: absolute;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: #86efac;
+          box-shadow: 0 6px 14px rgba(34, 197, 94, 0.16);
+        }
+
+        .seed-one {
+          top: 18px;
+          right: 28px;
+          background: #fcd34d;
+        }
+
+        .seed-two {
+          left: 18px;
+          bottom: 30px;
+          background: #fb923c;
+        }
+
+        .seed-three {
+          right: 22px;
+          bottom: 24px;
+          background: #86efac;
+        }
+
+        .empty-title {
+          font-size: 16px;
+          font-weight: 700;
+          color: #8b4513;
+          margin-bottom: 8px;
+        }
+
+        .empty-text {
+          max-width: 220px;
+          font-size: 13px;
+          line-height: 1.6;
+          color: #9a7650;
         }
       }
 
@@ -815,7 +1063,9 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    flex: 1;
+    flex: 0.94;
+    min-width: 0;
+    min-height: 0;
 
     .chat-header {
       background: linear-gradient(135deg, #fb923c 0%, #f59e0b 100%);
@@ -868,7 +1118,6 @@ onMounted(() => {
       gap: 16px;
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 252, 248, 0.05) 100%);
       min-height: 0;
-      max-height: calc(100vh - 200px);
       scrollbar-width: thin;
       scrollbar-color: rgba(251, 146, 60, 0.3) transparent;
 
@@ -905,6 +1154,7 @@ onMounted(() => {
 
         .message-content {
           max-width: 70%;
+          min-width: 0;
 
           .message-bubble {
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 252, 248, 0.95) 100%);
@@ -914,6 +1164,7 @@ onMounted(() => {
             animation: fadeInUp 0.4s ease-out;
             border: 1px solid rgba(251, 146, 60, 0.1);
             box-shadow: 0 4px 16px rgba(251, 146, 60, 0.05);
+            overflow-wrap: anywhere;
 
             .typing-indicator {
               display: flex;
@@ -962,39 +1213,99 @@ onMounted(() => {
 
     .chat-input {
       border-top: 1px solid rgba(251, 146, 60, 0.1);
-      padding: 20px 24px;
+      padding: 16px 20px;
       display: flex;
-      gap: 12px;
+      gap: 14px;
       align-items: flex-end;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 252, 248, 0.7) 100%);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.76) 0%, rgba(255, 250, 245, 0.92) 100%);
       backdrop-filter: blur(10px);
       flex-shrink: 0;
 
       .input-container {
         flex: 1;
+        padding: 10px 12px 8px;
+        border: 1px solid rgba(251, 146, 60, 0.16);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 8px 24px rgba(251, 146, 60, 0.08);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+        &:focus-within {
+          border-color: rgba(251, 146, 60, 0.45);
+          background: #fff;
+          box-shadow: 0 10px 28px rgba(251, 146, 60, 0.14), 0 0 0 3px rgba(251, 146, 60, 0.08);
+        }
+      }
+
+      :deep(.message-input) {
+        .el-textarea__inner {
+          min-height: 68px !important;
+          padding: 4px 2px;
+          border: 0;
+          border-radius: 12px;
+          color: #3f3f46;
+          background: transparent;
+          box-shadow: none;
+          line-height: 1.6;
+          resize: none;
+
+          &::placeholder {
+            color: #a8a29e;
+          }
+
+          &:focus {
+            box-shadow: none;
+          }
+        }
       }
 
       .input-footer {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        padding-top: 6px;
         font-size: 12px;
-        color: #78716c;
+        color: #a16207;
         font-weight: 500;
       }
 
       .send-btn {
-        height: 60px;
-        width: 60px;
-        border-radius: 16px;
+        height: 58px;
+        width: 58px;
+        border-radius: 18px;
         background: linear-gradient(135deg, #fb923c 0%, #f59e0b 100%) !important;
         border: none !important;
         box-shadow: 0 6px 20px rgba(251, 146, 60, 0.25);
         transition: all 0.3s ease;
+
+        &:hover:not(.is-disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 26px rgba(251, 146, 60, 0.32);
+        }
+
+        &.is-disabled {
+          opacity: 0.48;
+          box-shadow: none;
+        }
       }
 
     }
 
+  }
+}
+
+@keyframes onlineBlink {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 6px rgba(5, 150, 105, 0.45);
+  }
+
+  50% {
+    opacity: 0.35;
+    transform: scale(1.35);
+    box-shadow: 0 0 16px rgba(5, 150, 105, 0.8);
   }
 }
 </style>

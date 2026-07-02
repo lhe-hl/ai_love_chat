@@ -62,7 +62,7 @@ onMounted(() => {
   background-color: #fff;
 
   .navbar-container {
-    max-width: 1200px;
+    max-width: 1600px;
     height: 100%;
     margin: 0 auto;
     padding: 10px;
@@ -107,7 +107,7 @@ onMounted(() => {
   .footer-container {
     background: #1f2937;
     color: white;
-    padding: 15px 0;
+    padding: 3px 0;
     margin-top: auto;
 
     .footer-bottom {

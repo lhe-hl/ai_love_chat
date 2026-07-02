@@ -37,3 +37,11 @@ export function getSessionMessages(sessionId) {
     method: 'get'
   })
 }
+
+//获取当前对话情绪花园数据
+export function getEmotionData(sessionId) {
+  return service({
+    url: `/psychological-chat/session/${sessionId}/emotion`,
+    method: 'get'
+  })
+}
